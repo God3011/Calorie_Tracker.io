@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Tracker - Test Mode</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .test-banner {
+            background: #ff6b6b;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-weight: 500;
+        }
+        .test-banner a {
+            color: white;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-banner">
+        🧪 <strong>TEST MODE</strong> - This version uses localStorage for demo purposes. 
+        <a href="index.html">Switch to Production Mode</a> (requires Google Apps Script setup)
+    </div>
+    
+    <div class="container">
+        <header>
+            <h1>📊 Daily Health Tracker</h1>
+            <p>Log your daily health metrics and track your progress</p>
+        </header>
+
+        <main>
+            <!-- Health Data Form -->
+            <section class="form-section">
+                <h2>Log Today's Data</h2>
+                <form id="healthForm" class="health-form">
+                    <div class="form-group">
+                        <label for="date">Date</label>
+                        <input type="date" id="date" name="date" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="weight">Weight (kg)</label>
+                        <input type="number" id="weight" name="weight" step="0.1" min="0" placeholder="e.g., 70.5" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="morningCalories">Morning Calories</label>
+                            <input type="number" id="morningCalories" name="morningCalories" min="0" placeholder="e.g., 400" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="lunchCalories">Lunch Calories</label>
+                            <input type="number" id="lunchCalories" name="lunchCalories" min="0" placeholder="e.g., 600" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="dinnerCalories">Dinner Calories</label>
+                            <input type="number" id="dinnerCalories" name="dinnerCalories" min="0" placeholder="e.g., 500" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn">
+                        <span class="btn-text">Log Data</span>
+                        <span class="btn-loading" style="display: none;">Logging...</span>
+                    </button>
+                </form>
+
+                <!-- Success/Error Messages -->
+                <div id="message" class="message" style="display: none;"></div>
+            </section>
+
+            <!-- Live Data Table -->
+            <section class="table-section">
+                <div class="table-header">
+                    <h2>Your Health Data</h2>
+                    <button id="refreshBtn" class="refresh-btn">🔄 Refresh</button>
+                </div>
+                
+                <div class="table-container">
+                    <table id="healthTable" class="health-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Weight (kg)</th>
+                                <th>Morning</th>
+                                <th>Lunch</th>
+                                <th>Dinner</th>
+                                <th>Total Calories</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <tr class="no-data">
+                                <td colspan="6">No data logged yet. Start by submitting your first entry above!</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Keep track of your health journey, one day at a time! 💪</p>
+        </footer>
+    </div>
+
+    <script>
+        // Test version with localStorage (no Google Apps Script required)
+        const GOOGLE_SCRIPT_URL = 'test-mode'; // Special value for test mode
+        
+        // DOM Elements
+        const healthForm = document.getElementById('healthForm');
+        const messageDiv = document.getElementById('message');
+        const tableBody = document.getElementById('tableBody');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const submitBtn = healthForm.querySelector('.submit-btn');
+        const btnText = submitBtn.querySelector('.btn-text');
+        const btnLoading = submitBtn.querySelector('.btn-loading');
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set today's date as default
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('date').value = today;
+            
+            // Load existing data
+            loadHealthData();
+            
+            // Add event listeners
+            healthForm.addEventListener('submit', handleFormSubmit);
+            refreshBtn.addEventListener('click', loadHealthData);
+            
+            // Add sample data if none exists
+            const existingData = localStorage.getItem('healthData');
+            if (!existingData) {
+                addSampleData();
+            }
+        });
+
+        // Handle form submission
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            
+            // Show loading state
+            setLoadingState(true);
+            hideMessage();
+            
+            try {
+                // Get form data
+                const formData = new FormData(healthForm);
+                const healthData = {
+                    date: formData.get('date'),
+                    weight: parseFloat(formData.get('weight')),
+                    morningCalories: parseInt(formData.get('morningCalories')),
+                    lunchCalories: parseInt(formData.get('lunchCalories')),
+                    dinnerCalories: parseInt(formData.get('dinnerCalories'))
+                };
+                
+                // Validate data
+                if (!validateHealthData(healthData)) {
+                    throw new Error('Please fill in all fields with valid values');
+                }
+                
+                // Store in localStorage (test mode)
+                storeHealthData(healthData);
+                
+                showMessage('Health data logged successfully! 🎉', 'success');
+                healthForm.reset();
+                document.getElementById('date').value = new Date().toISOString().split('T')[0];
+                loadHealthData(); // Refresh the table
+                
+            } catch (error) {
+                console.error('Error submitting health data:', error);
+                showMessage(`Error: ${error.message}`, 'error');
+            } finally {
+                setLoadingState(false);
+            }
+        }
+
+        // Validate health data
+        function validateHealthData(data) {
+            if (!data.date || !data.weight || !data.morningCalories || !data.lunchCalories || !data.dinnerCalories) {
+                return false;
+            }
+            
+            if (data.weight <= 0 || data.morningCalories < 0 || data.lunchCalories < 0 || data.dinnerCalories < 0) {
+                return false;
+            }
+            
+            return true;
+        }
+
+        // Set loading state for submit button
+        function setLoadingState(loading) {
+            if (loading) {
+                submitBtn.disabled = true;
+                btnText.style.display = 'none';
+                btnLoading.style.display = 'inline';
+            } else {
+                submitBtn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }
+        }
+
+        // Show message to user
+        function showMessage(text, type) {
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+            
+            // Auto-hide success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    hideMessage();
+                }, 5000);
+            }
+        }
+
+        // Hide message
+        function hideMessage() {
+            messageDiv.style.display = 'none';
+        }
+
+        // Load health data from localStorage
+        function loadHealthData() {
+            try {
+                const storedData = localStorage.getItem('healthData');
+                const healthData = storedData ? JSON.parse(storedData) : [];
+                displayHealthData(healthData);
+            } catch (error) {
+                console.error('Error loading health data:', error);
+                showMessage('Error loading health data', 'error');
+            }
+        }
+
+        // Display health data in the table
+        function displayHealthData(data) {
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = '<tr class="no-data"><td colspan="6">No data logged yet. Start by submitting your first entry above!</td></tr>';
+                return;
+            }
+            
+            // Sort data by date (newest first)
+            const sortedData = data.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            tableBody.innerHTML = sortedData.map(entry => {
+                const totalCalories = entry.morningCalories + entry.lunchCalories + entry.dinnerCalories;
+                const formattedDate = new Date(entry.date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+                
+                return `
+                    <tr>
+                        <td>${formattedDate}</td>
+                        <td>${entry.weight} kg</td>
+                        <td>${entry.morningCalories} cal</td>
+                        <td>${entry.lunchCalories} cal</td>
+                        <td>${entry.dinnerCalories} cal</td>
+                        <td><strong>${totalCalories} cal</strong></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Store health data in localStorage
+        function storeHealthData(data) {
+            const existingData = JSON.parse(localStorage.getItem('healthData') || '[]');
+            existingData.push(data);
+            localStorage.setItem('healthData', JSON.stringify(existingData));
+        }
+
+        // Add sample data for demonstration
+        function addSampleData() {
+            const sampleData = [
+                {
+                    date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    weight: 70.5,
+                    morningCalories: 400,
+                    lunchCalories: 600,
+                    dinnerCalories: 500
+                },
+                {
+                    date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    weight: 70.3,
+                    morningCalories: 350,
+                    lunchCalories: 650,
+                    dinnerCalories: 450
+                }
+            ];
+            
+            localStorage.setItem('healthData', JSON.stringify(sampleData));
+            loadHealthData();
+        }
+    </script>
+</body>
+</html>

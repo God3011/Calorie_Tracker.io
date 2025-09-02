@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Health Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Daily Health Tracker</h1>
+            <p>Log your daily health metrics and track your progress</p>
+        </header>
+
+        <main>
+            <!-- Health Data Form -->
+            <section class="form-section">
+                <h2>Log Today's Data</h2>
+                <form id="healthForm" class="health-form">
+                    <div class="form-group">
+                        <label for="date">Date</label>
+                        <input type="date" id="date" name="date" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="weight">Weight (kg)</label>
+                        <input type="number" id="weight" name="weight" step="0.1" min="0" placeholder="e.g., 70.5" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="morningCalories">Morning Calories</label>
+                            <input type="number" id="morningCalories" name="morningCalories" min="0" placeholder="e.g., 400" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="lunchCalories">Lunch Calories</label>
+                            <input type="number" id="lunchCalories" name="lunchCalories" min="0" placeholder="e.g., 600" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="dinnerCalories">Dinner Calories</label>
+                            <input type="number" id="dinnerCalories" name="dinnerCalories" min="0" placeholder="e.g., 500" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn">
+                        <span class="btn-text">Log Data</span>
+                        <span class="btn-loading" style="display: none;">Logging...</span>
+                    </button>
+                </form>
+
+                <!-- Success/Error Messages -->
+                <div id="message" class="message" style="display: none;"></div>
+            </section>
+
+            <!-- Live Data Table -->
+            <section class="table-section">
+                <div class="table-header">
+                    <h2>Your Health Data</h2>
+                    <button id="refreshBtn" class="refresh-btn">🔄 Refresh</button>
+                </div>
+                
+                <div class="table-container">
+                    <table id="healthTable" class="health-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Weight (kg)</th>
+                                <th>Morning</th>
+                                <th>Lunch</th>
+                                <th>Dinner</th>
+                                <th>Total Calories</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <tr class="no-data">
+                                <td colspan="6">No data logged yet. Start by submitting your first entry above!</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Keep track of your health journey, one day at a time! 💪</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
