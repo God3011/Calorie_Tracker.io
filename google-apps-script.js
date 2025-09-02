@@ -14,8 +14,8 @@
  */
 
 // Configuration - Replace with your Google Sheet ID
-const SHEET_ID = 'YOUR_GOOGLE_SHEET_ID_HERE';
-const SHEET_NAME = 'HealthData';
+const SHEET_ID = '1OhAprOO5YAQQSIcwmVQmW6a7g6_hqSJrlmr81zk2FFU';
+const SHEET_NAME = 'Tight';
 
 /**
  * Main function to handle POST requests
