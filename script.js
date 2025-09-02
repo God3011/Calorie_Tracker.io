@@ -1,5 +1,5 @@
 // Configuration - Replace with your Google Apps Script Web App URL
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRRpvFNre__QbEI2yqKfmQFxhjpUwF0TrJ31oTCSe52neSv4Kqex0Eow7M6HwCzPM/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby2bVKadF5WKvL-K0slD9AuSzZwTx3zi9pVQEEo5mqJSsdOKu-2mVRs0b7nBlIDPbHU/exec';
 
 // DOM Elements
 const healthForm = document.getElementById('healthForm');
