@@ -95,8 +95,10 @@ async function handleFormSubmit(event) {
         try {
             const response = await fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
+                // Use a "simple" Content-Type to avoid CORS preflight (OPTIONS)
+                // Apps Script will still receive the JSON string in e.postData.contents
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'text/plain;charset=utf-8',
                 },
                 body: JSON.stringify(healthData)
             });
