@@ -161,6 +161,42 @@ input[type="number"]:hover {
     border: 1px solid #f5c6cb;
 }
 
+.message.warning {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+/* Connection Status */
+.connection-status {
+    margin-top: 15px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #bbdefb;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.connection-status.offline {
+    background: #fff3e0;
+    color: #ef6c00;
+    border-color: #ffcc02;
+}
+
+.connection-status.online {
+    background: #e8f5e8;
+    color: #2e7d32;
+    border-color: #c8e6c9;
+}
+
+.status-icon {
+    font-size: 1rem;
+}
+
 /* Table Section */
 .table-section {
     background: white;

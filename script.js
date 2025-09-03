@@ -9,12 +9,16 @@ const refreshBtn = document.getElementById('refreshBtn');
 const submitBtn = healthForm.querySelector('.submit-btn');
 const btnText = submitBtn.querySelector('.btn-text');
 const btnLoading = submitBtn.querySelector('.btn-loading');
+const connectionStatus = document.getElementById('connectionStatus');
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     // Set today's date as default
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('date').value = today;
+    
+    // Check connection status
+    checkConnectionStatus();
     
     // Load existing data
     loadHealthData();
@@ -23,6 +27,45 @@ document.addEventListener('DOMContentLoaded', function() {
     healthForm.addEventListener('submit', handleFormSubmit);
     refreshBtn.addEventListener('click', loadHealthData);
 });
+
+// Check connection status
+async function checkConnectionStatus() {
+    if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL === 'YOUR_GOOGLE_SCRIPT_URL_HERE') {
+        showConnectionStatus('offline', '⚠️ Google Apps Script not configured - using local storage');
+        return;
+    }
+    
+    showConnectionStatus('checking', '🔄 Checking connection...');
+    
+    try {
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'GET',
+            mode: 'cors'
+        });
+        
+        if (response.ok) {
+            showConnectionStatus('online', '✅ Connected to Google Sheets');
+        } else {
+            showConnectionStatus('offline', '⚠️ Google Sheets unavailable - using local storage');
+        }
+    } catch (error) {
+        showConnectionStatus('offline', '⚠️ Connection failed - using local storage');
+    }
+}
+
+// Show connection status
+function showConnectionStatus(status, message) {
+    connectionStatus.className = `connection-status ${status}`;
+    connectionStatus.querySelector('.status-text').textContent = message;
+    connectionStatus.style.display = 'flex';
+    
+    // Auto-hide after 5 seconds for success
+    if (status === 'online') {
+        setTimeout(() => {
+            connectionStatus.style.display = 'none';
+        }, 5000);
+    }
+}
 
 // Handle form submission
 async function handleFormSubmit(event) {
@@ -48,29 +91,42 @@ async function handleFormSubmit(event) {
             throw new Error('Please fill in all fields with valid values');
         }
         
-        // Send data to Google Apps Script
-        const response = await fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(healthData)
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        // Try Google Apps Script first
+        try {
+            const response = await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(healthData)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showMessage('Health data logged to Google Sheets! 🎉', 'success');
+                healthForm.reset();
+                document.getElementById('date').value = new Date().toISOString().split('T')[0];
+                loadHealthData(); // Refresh the table
+                return;
+            } else {
+                throw new Error(result.error || 'Server returned error');
+            }
+        } catch (fetchError) {
+            console.warn('Google Apps Script failed, using local storage:', fetchError);
+            showMessage(`Google Sheets unavailable (${fetchError.message}). Using local storage.`, 'warning');
         }
         
-        const result = await response.json();
-        
-        if (result.success) {
-            showMessage('Health data logged successfully! 🎉', 'success');
-            healthForm.reset();
-            document.getElementById('date').value = new Date().toISOString().split('T')[0];
-            loadHealthData(); // Refresh the table
-        } else {
-            throw new Error(result.error || 'Failed to log health data');
-        }
+        // Fallback to localStorage
+        storeHealthData(healthData);
+        showMessage('Health data saved locally! 🎉', 'success');
+        healthForm.reset();
+        document.getElementById('date').value = new Date().toISOString().split('T')[0];
+        loadHealthData(); // Refresh the table
         
     } catch (error) {
         console.error('Error submitting health data:', error);
@@ -125,15 +181,39 @@ function hideMessage() {
     messageDiv.style.display = 'none';
 }
 
-// Load health data from Google Sheets (via Google Apps Script)
+// Load health data from localStorage (with Google Sheets fallback)
 async function loadHealthData() {
     try {
-        // For now, we'll use localStorage to simulate data storage
-        // In a real implementation, you'd fetch from your Google Apps Script
+        // Try to load from localStorage first (always available)
         const storedData = localStorage.getItem('healthData');
         const healthData = storedData ? JSON.parse(storedData) : [];
         
         displayHealthData(healthData);
+        
+        // Optionally try to sync with Google Sheets in the background
+        if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== 'YOUR_GOOGLE_SCRIPT_URL_HERE') {
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.data) {
+                        // Merge with local data (Google Sheets as source of truth)
+                        const mergedData = [...result.data, ...healthData];
+                        const uniqueData = mergedData.filter((item, index, self) => 
+                            index === self.findIndex(t => t.date === item.date)
+                        );
+                        localStorage.setItem('healthData', JSON.stringify(uniqueData));
+                        displayHealthData(uniqueData);
+                    }
+                }
+            } catch (syncError) {
+                console.log('Background sync failed, using local data:', syncError);
+            }
+        }
         
     } catch (error) {
         console.error('Error loading health data:', error);
@@ -172,8 +252,7 @@ function displayHealthData(data) {
     }).join('');
 }
 
-// Simulate data storage (for demo purposes)
-// In a real implementation, this would be handled by Google Apps Script
+// Store health data in localStorage
 function storeHealthData(data) {
     const existingData = JSON.parse(localStorage.getItem('healthData') || '[]');
     existingData.push(data);
