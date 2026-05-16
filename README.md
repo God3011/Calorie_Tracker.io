@@ -1,183 +1,104 @@
-# Daily Health Tracker
+# Calorie Tracker
 
-A complete web application for logging daily health data including weight and calorie intake. The application features a clean, responsive interface and automatically stores data in Google Sheets.
+A simple app to log your weight and daily calories into a Google Sheet. One row per day. There's a web form for quick entries, and an AI agent (Gemini) you can chat with to log meals in plain English.
 
-## Features
-
-- 📊 **Clean, Modern UI**: Responsive design that works on all devices
-- 📝 **Easy Data Entry**: Simple form for logging daily health metrics
-- 📈 **Live Data Table**: Real-time display of your health data
-- ☁️ **Google Sheets Integration**: Automatic data storage in Google Sheets
-- 🔄 **Auto-refresh**: Table updates automatically after new entries
-- 📱 **Mobile Friendly**: Optimized for mobile and desktop use
-
-## Data Fields
-
-- **Date**: The date for the health entry
-- **Weight**: Your weight in kilograms
-- **Morning Calories**: Calories consumed in the morning
-- **Lunch Calories**: Calories consumed at lunch
-- **Dinner Calories**: Calories consumed at dinner
-- **Total Calories**: Automatically calculated total
-
-## Setup Instructions
-
-### 1. Google Apps Script Setup
-
-1. **Create a Google Apps Script Project**:
-   - Go to [https://script.google.com/](https://script.google.com/)
-   - Click "New Project"
-   - Replace the default code with the content from `google-apps-script.js`
-
-2. **Create a Google Sheet**:
-   - Go to [https://sheets.google.com/](https://sheets.google.com/)
-   - Create a new spreadsheet
-   - Copy the Sheet ID from the URL (the long string between `/d/` and `/edit`)
-   - Update the `SHEET_ID` constant in the Google Apps Script
-
-3. **Deploy the Script**:
-   - In Google Apps Script, click "Deploy" → "New deployment"
-   - Choose "Web app" as the type
-   - Set "Execute as" to "Me"
-   - Set "Who has access" to "Anyone"
-   - Click "Deploy"
-   - Copy the Web App URL
-
-### 2. Frontend Setup
-
-1. **Update the Script URL**:
-   - Open `script.js`
-   - Replace `YOUR_GOOGLE_SCRIPT_URL_HERE` with your actual Google Apps Script Web App URL
-
-2. **Host the Files**:
-   - Upload `index.html`, `styles.css`, and `script.js` to any web hosting service
-   - Popular options: GitHub Pages, Netlify, Vercel, or any web server
-
-### 3. Local Testing (Optional)
-
-You can test the application locally:
-
-1. **Simple HTTP Server**:
-   ```bash
-   # Using Python 3
-   python -m http.server 8000
-   
-   # Using Node.js (if you have http-server installed)
-   npx http-server
-   
-   # Using PHP
-   php -S localhost:8000
-   ```
-
-2. **Open in Browser**:
-   - Navigate to `http://localhost:8000`
-   - The application should load and be ready to use
-
-## File Structure
+## What's in the repo
 
 ```
-Calorie-Tracker/
-├── index.html              # Main HTML file
-├── styles.css              # CSS styling
-├── script.js               # JavaScript functionality
-├── google-apps-script.js   # Google Apps Script backend
-└── README.md              # This file
+Calorie_Tracker.io/
+├── index.html              # the web form
+├── script.js               # frontend logic
+├── styles.css              # styling
+├── google-apps-script.js   # backend — runs in Google Apps Script
+└── agent/                  # optional chat agent (Python + Streamlit)
+    ├── app.py
+    ├── agent.py
+    ├── tools.py
+    ├── requirements.txt
+    └── .env.example
+```
+
+## How it works
+
+You enter weight + calories → frontend POSTs to a Google Apps Script web app → the script writes/updates a row in your Google Sheet. If a row for today already exists, it merges instead of adding a duplicate.
+
+The agent does the same thing but lets you say "5 eggs and toast for breakfast" and figures out the calories itself.
+
+## Setup
+
+### 1. Make the Google Sheet
+
+1. Go to https://sheets.google.com and create a blank sheet
+2. Copy the **Sheet ID** from the URL — the long string between `/d/` and `/edit`
+
+### 2. Set up the Apps Script
+
+1. Go to https://script.google.com → **New project**
+2. Delete the default code, paste in everything from `google-apps-script.js`
+3. Replace `SHEET_ID` at the top with your Sheet ID
+4. Save (Cmd/Ctrl+S)
+5. Run the `testSetup` function once — it'll ask for permissions, approve them
+
+### 3. Deploy it as a web app
+
+1. Click **Deploy → New deployment**
+2. Pick **Web app** as the type
+3. Execute as: **Me**
+4. Who has access: **Anyone**
+5. Click **Deploy** and copy the URL (ends in `/exec`)
+
+### 4. Connect the frontend
+
+Open `script.js` and paste your `/exec` URL into `GOOGLE_SCRIPT_URL` at the top.
+
+Run a local server (don't open `index.html` directly — CORS will block it):
+
+```bash
+python3 -m http.server 8000
+```
+
+Open http://localhost:8000 and you're done.
+
+### 5. (Optional) Run the chat agent
+
+```bash
+cd agent
+cp .env.example .env
+# fill in your keys in .env:
+#   GOOGLE_SCRIPT_URL — same /exec url as above
+#   GOOGLE_API_KEY    — get one at https://aistudio.google.com/apikey
+pip install -r requirements.txt
+streamlit run app.py
 ```
 
 ## Usage
 
-1. **Log Daily Data**:
-   - Fill out the form with today's health data
-   - Click "Log Data" to submit
-   - You'll see a confirmation message
+**Web form:** fill in date, weight, calories per meal, hit submit. Table below shows your history.
 
-2. **View Your Data**:
-   - The table below the form shows all your logged entries
-   - Data is sorted by date (newest first)
-   - Total calories are automatically calculated
+**Agent:** chat naturally — *"had 2 eggs and toast for breakfast"*, *"weight 72kg today"*, *"how was my week?"* It'll show the breakdown, ask you to confirm, then log it.
 
-3. **Refresh Data**:
-   - Click the "🔄 Refresh" button to reload data from Google Sheets
-   - Data refreshes automatically after new submissions
+## Sheet structure
 
-## Google Sheets Structure
-
-The script automatically creates a sheet with the following columns:
+The script creates these columns automatically:
 
 | Date | Weight (kg) | Morning Calories | Lunch Calories | Dinner Calories | Total Calories |
-|------|-------------|------------------|----------------|-----------------|----------------|
-| 2024-01-15 | 70.5 | 400 | 600 | 500 | 1500 |
 
-## Troubleshooting
+One row per day — re-logging the same date updates the existing row.
 
-### Common Issues
+## Gotchas
 
-1. **"Error: Failed to log health data"**:
-   - Check that your Google Apps Script URL is correct
-   - Ensure the script is deployed with "Anyone" access
-   - Verify your Google Sheet ID is correct
+**Frontend says "HTTP 404"** → the Apps Script deployment isn't reachable. Open the `/exec` URL in incognito. If it doesn't show JSON, redeploy with access set to **Anyone**.
 
-2. **"CORS error"**:
-   - Make sure you're hosting the files on a web server (not opening directly in browser)
-   - Check that your Google Apps Script is deployed as a web app
+**Frontend works in some browsers, not others** → opening `index.html` via `file://` will fail CORS. Use a local server.
 
-3. **Data not appearing in Google Sheets**:
-   - Run the `testSetup()` function in Google Apps Script to verify configuration
-   - Check the Google Apps Script execution logs for errors
+**Agent says quota exceeded** → free-tier Gemini gives you 20 requests/day per model. Either wait until UTC midnight, switch to a different model in `agent/agent.py`, or enable billing.
 
-### Testing the Setup
+**Agent shows `'list' object has no attribute 'get'`** → this used to mask the real error from Gemini. Streaming is now disabled so you should see the actual message. If it returns, check the terminal where Streamlit is running.
 
-1. **Test Google Apps Script**:
-   - In Google Apps Script, run the `testSetup()` function
-   - Check the execution logs for any errors
+**Don't commit `agent/.env`** → it's gitignored. Don't paste real keys into `.env.example` either — Google's secret scanner will revoke them.
 
-2. **Test Web App URL**:
-   - Open your Google Apps Script Web App URL in a browser
-   - You should see a JSON response
+## Customising
 
-## Customization
-
-### Adding New Fields
-
-1. **Update the HTML form** in `index.html`
-2. **Update the JavaScript** in `script.js` to handle the new field
-3. **Update the Google Apps Script** in `google-apps-script.js` to store the new field
-4. **Update the table display** to show the new field
-
-### Styling Changes
-
-- Modify `styles.css` to change colors, fonts, or layout
-- The design uses CSS Grid and Flexbox for responsive layout
-- Color scheme can be easily customized by changing the CSS variables
-
-## Security Notes
-
-- The Google Apps Script is set to "Anyone" access for simplicity
-- For production use, consider implementing authentication
-- The script validates all incoming data before storing it
-- No sensitive data is stored in the frontend code
-
-## Browser Support
-
-- Chrome (recommended)
-- Firefox
-- Safari
-- Edge
-- Mobile browsers (iOS Safari, Chrome Mobile)
-
-## License
-
-This project is open source and available under the MIT License.
-
-## Support
-
-If you encounter any issues:
-
-1. Check the troubleshooting section above
-2. Verify your Google Apps Script setup
-3. Check browser console for JavaScript errors
-4. Ensure all files are properly hosted and accessible
-
----
-
-**Happy Health Tracking! 💪**
+- New form field → update `index.html`, `script.js`, and the sheet columns in `google-apps-script.js`
+- Styling → all in `styles.css`
+- Switch Gemini model → edit `agent/agent.py`, the `model=` line

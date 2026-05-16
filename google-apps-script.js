@@ -25,7 +25,7 @@ function doPost(e) {
   try {
     // Parse the incoming JSON data
     const data = JSON.parse(e.postData.contents);
-    
+
     // Validate the data
     if (!validateHealthData(data)) {
       return ContentService
@@ -35,10 +35,10 @@ function doPost(e) {
         }))
         .setMimeType(ContentService.MimeType.JSON);
     }
-    
+
     // Store the data in Google Sheets
     const result = storeHealthData(data);
-    
+
     if (result.success) {
       return ContentService
         .createTextOutput(JSON.stringify({
@@ -55,7 +55,7 @@ function doPost(e) {
         }))
         .setMimeType(ContentService.MimeType.JSON);
     }
-    
+
   } catch (error) {
     console.error('Error processing request:', error);
     return ContentService
@@ -95,35 +95,35 @@ function doGet(e) {
 function validateHealthData(data) {
   // Check if all required fields are present
   const requiredFields = ['date', 'weight', 'morningCalories', 'lunchCalories', 'dinnerCalories'];
-  
+
   for (const field of requiredFields) {
     if (!data.hasOwnProperty(field) || data[field] === null || data[field] === undefined) {
       return false;
     }
   }
-  
+
   // Validate data types and ranges
   if (typeof data.weight !== 'number' || data.weight <= 0) {
     return false;
   }
-  
+
   if (typeof data.morningCalories !== 'number' || data.morningCalories < 0) {
     return false;
   }
-  
+
   if (typeof data.lunchCalories !== 'number' || data.lunchCalories < 0) {
     return false;
   }
-  
+
   if (typeof data.dinnerCalories !== 'number' || data.dinnerCalories < 0) {
     return false;
   }
-  
+
   // Validate date format
   if (!isValidDate(data.date)) {
     return false;
   }
-  
+
   return true;
 }
 
@@ -136,30 +136,79 @@ function isValidDate(dateString) {
 }
 
 /**
- * Store health data in Google Sheets
+ * Normalise a date value (string or Date) to YYYY-MM-DD for comparison
+ */
+function normaliseDate(value) {
+  if (!value) return '';
+  if (value instanceof Date) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const text = String(value);
+  return text.indexOf('T') >= 0 ? text.split('T')[0] : text.slice(0, 10);
+}
+
+/**
+ * Store health data in Google Sheets — one row per day.
+ * If a row for the same date exists, merge: non-zero incoming values
+ * overwrite existing; zero/empty incoming values keep existing.
  */
 function storeHealthData(data) {
   try {
-    // Open the spreadsheet
     const spreadsheet = SpreadsheetApp.openById(SHEET_ID);
     let sheet = spreadsheet.getSheetByName(SHEET_NAME);
-    
-    // Create sheet if it doesn't exist
+
     if (!sheet) {
       sheet = spreadsheet.insertSheet(SHEET_NAME);
-      // Add headers
       sheet.getRange(1, 1, 1, 6).setValues([
         ['Date', 'Weight (kg)', 'Morning Calories', 'Lunch Calories', 'Dinner Calories', 'Total Calories']
       ]);
-      // Format headers
       sheet.getRange(1, 1, 1, 6).setFontWeight('bold');
       sheet.getRange(1, 1, 1, 6).setBackground('#f0f0f0');
     }
-    
-    // Calculate total calories
-    const totalCalories = data.morningCalories + data.lunchCalories + data.dinnerCalories;
-    
-    // Prepare row data
+
+    const targetDate = normaliseDate(data.date);
+    const lastRow = sheet.getLastRow();
+
+    let existingRowIndex = -1;
+    if (lastRow > 1) {
+      const dateValues = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (let i = 0; i < dateValues.length; i++) {
+        if (normaliseDate(dateValues[i][0]) === targetDate) {
+          existingRowIndex = i + 2;
+          break;
+        }
+      }
+    }
+
+    if (existingRowIndex > 0) {
+      const current = sheet.getRange(existingRowIndex, 1, 1, 6).getValues()[0];
+      const mergedWeight = data.weight > 0 ? data.weight : current[1];
+      const mergedMorning = data.morningCalories > 0 ? data.morningCalories : current[2];
+      const mergedLunch = data.lunchCalories > 0 ? data.lunchCalories : current[3];
+      const mergedDinner = data.dinnerCalories > 0 ? data.dinnerCalories : current[4];
+      const mergedTotal =
+        Number(mergedMorning || 0) + Number(mergedLunch || 0) + Number(mergedDinner || 0);
+
+      sheet.getRange(existingRowIndex, 1, 1, 6).setValues([[
+        current[0],
+        mergedWeight,
+        mergedMorning,
+        mergedLunch,
+        mergedDinner,
+        mergedTotal
+      ]]);
+
+      return { success: true, row: existingRowIndex, updated: true };
+    }
+
+    const totalCalories =
+      Number(data.morningCalories || 0) +
+      Number(data.lunchCalories || 0) +
+      Number(data.dinnerCalories || 0);
+
     const rowData = [
       data.date,
       data.weight,
@@ -168,23 +217,14 @@ function storeHealthData(data) {
       data.dinnerCalories,
       totalCalories
     ];
-    
-    // Append the data to the sheet
-    const lastRow = sheet.getLastRow();
-    sheet.getRange(lastRow + 1, 1, 1, 6).setValues([rowData]);
-    
-    // Format the new row
+
     const newRow = lastRow + 1;
+    sheet.getRange(newRow, 1, 1, 6).setValues([rowData]);
     sheet.getRange(newRow, 1, 1, 6).setBorder(true, true, true, true, true, true);
-    
-    // Auto-resize columns
     sheet.autoResizeColumns(1, 6);
-    
-    return {
-      success: true,
-      row: newRow
-    };
-    
+
+    return { success: true, row: newRow, updated: false };
+
   } catch (error) {
     console.error('Error storing health data:', error);
     return {
@@ -201,13 +241,13 @@ function getHealthData() {
   try {
     const spreadsheet = SpreadsheetApp.openById(SHEET_ID);
     const sheet = spreadsheet.getSheetByName(SHEET_NAME);
-    
+
     if (!sheet) {
       return [];
     }
-    
+
     const data = sheet.getDataRange().getValues();
-    
+
     // Skip header row and convert to objects
     const healthData = [];
     for (let i = 1; i < data.length; i++) {
@@ -221,9 +261,9 @@ function getHealthData() {
         totalCalories: row[5]
       });
     }
-    
+
     return healthData;
-    
+
   } catch (error) {
     console.error('Error retrieving health data:', error);
     throw error;
@@ -238,7 +278,7 @@ function testSetup() {
     // Test spreadsheet access
     const spreadsheet = SpreadsheetApp.openById(SHEET_ID);
     console.log('Spreadsheet access: OK');
-    
+
     // Test sheet creation/access
     let sheet = spreadsheet.getSheetByName(SHEET_NAME);
     if (!sheet) {
@@ -247,7 +287,7 @@ function testSetup() {
     } else {
       console.log('Sheet access: OK');
     }
-    
+
     // Test data storage
     const testData = {
       date: new Date().toISOString().split('T')[0],
@@ -256,16 +296,16 @@ function testSetup() {
       lunchCalories: 600,
       dinnerCalories: 500
     };
-    
+
     const result = storeHealthData(testData);
     if (result.success) {
       console.log('Data storage test: OK');
     } else {
       console.log('Data storage test: FAILED -', result.error);
     }
-    
+
     return 'Setup test completed. Check the logs for results.';
-    
+
   } catch (error) {
     console.error('Setup test failed:', error);
     return 'Setup test failed: ' + error.toString();
